@@ -50,6 +50,11 @@ Most LLM metrics pipelines are tightly coupled to infrastructure.
 pip install langmet
 ```
 
+or with git cli & pip
+```cmd/bash
+pip install git+https://github.com/<user>/<repo>.git
+```
+
 With SQLAlchemy adapter support:
 
 ```bash
