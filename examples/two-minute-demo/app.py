@@ -1,0 +1,117 @@
+"""Two-minute LangMet demo: FastAPI backend + static frontend."""
+
+from datetime import datetime, timedelta, timezone
+from pathlib import Path
+from random import Random
+
+from fastapi import FastAPI
+from fastapi.responses import FileResponse
+from fastapi.staticfiles import StaticFiles
+
+from langmet.analytics import (
+    compute_citation_coverage,
+    compute_operational_metrics,
+    compute_rag_metrics,
+    detect_numeric_drift_windowed,
+)
+from langmet.models import CitationMessageEvent, CompletionEvent, RagEvent
+
+APP_DIR = Path(__file__).parent
+FRONTEND_DIR = APP_DIR / "frontend"
+RNG = Random(42)
+
+app = FastAPI(title="LangMet Two-Minute Demo", version="0.1.0")
+app.mount("/static", StaticFiles(directory=str(FRONTEND_DIR)), name="static")
+
+
+def _build_demo_data() -> dict:
+    now = datetime.now(timezone.utc)
+
+    completions = []
+    for idx in range(250):
+        created_at = now - timedelta(minutes=idx * 3)
+        provider = "openai" if idx % 3 else "anthropic"
+        latency_base = 180 if idx < 40 else 120
+        latency_ms = max(20, int(RNG.gauss(latency_base, 20)))
+        tokens_total = max(30, int(RNG.gauss(700, 180)))
+        error_message = "timeout" if idx % 37 == 0 else None
+        completions.append(
+            CompletionEvent(
+                provider=provider,
+                model="demo-model",
+                latency_ms=latency_ms,
+                tokens_total=tokens_total,
+                error_message=error_message,
+                created_at=created_at,
+            )
+        )
+
+    rag_events = []
+    for idx in range(160):
+        created_at = now - timedelta(minutes=idx * 5)
+        rag_events.append(
+            RagEvent(
+                top_k=10,
+                top_n=3,
+                retrieval_scores=[round(RNG.uniform(0.55, 0.98), 3) for _ in range(5)],
+                rerank_scores=[round(RNG.uniform(0.6, 0.99), 3) for _ in range(3)],
+                retrieval_latency_ms=max(8, int(RNG.gauss(55, 12))),
+                rerank_latency_ms=max(6, int(RNG.gauss(28, 8))),
+                created_at=created_at,
+            )
+        )
+
+    citation_events = []
+    for idx in range(180):
+        created_at = now - timedelta(minutes=idx * 4)
+        evidence_count = 0 if idx % 5 == 0 else (1 if idx % 3 else 2)
+        citation_events.append(
+            CitationMessageEvent(
+                message_id=f"msg-{idx}",
+                evidence_count=evidence_count,
+                created_at=created_at,
+            )
+        )
+
+    return {
+        "completions": completions,
+        "rag_events": rag_events,
+        "citation_events": citation_events,
+    }
+
+
+DEMO_DATA = _build_demo_data()
+
+
+@app.get("/health")
+def health() -> dict:
+    return {"status": "ok", "demo": "langmet-two-minute"}
+
+
+@app.get("/api/metrics")
+def metrics() -> dict:
+    return {
+        "operational": compute_operational_metrics(DEMO_DATA["completions"]),
+        "rag": compute_rag_metrics(DEMO_DATA["rag_events"]),
+        "citation_coverage": compute_citation_coverage(DEMO_DATA["citation_events"]),
+    }
+
+
+@app.get("/api/drift")
+def drift() -> dict:
+    observations = [
+        (event.created_at, float(event.latency_ms or 0))
+        for event in DEMO_DATA["completions"]
+        if event.latency_ms is not None
+    ]
+    return detect_numeric_drift_windowed(
+        observations=observations,
+        current_window=timedelta(hours=1),
+        baseline_window=timedelta(days=7),
+        min_samples_per_window=10,
+    )
+
+
+@app.get("/")
+def index() -> FileResponse:
+    return FileResponse(FRONTEND_DIR / "index.html")

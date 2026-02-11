@@ -1,0 +1,134 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>LangMet Two-Minute Demo</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: #0b1020;
+        color: #e6edf7;
+      }
+      .wrap {
+        max-width: 980px;
+        margin: 0 auto;
+        padding: 24px;
+      }
+      .hero {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 12px;
+      }
+      .grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+        margin-top: 16px;
+      }
+      .card {
+        background: #141c32;
+        border: 1px solid #263352;
+        border-radius: 10px;
+        padding: 14px;
+      }
+      .k {
+        font-size: 12px;
+        color: #9fb0d1;
+      }
+      .v {
+        font-size: 24px;
+        margin-top: 4px;
+        font-weight: 700;
+      }
+      button {
+        background: #5f7dff;
+        border: 0;
+        color: white;
+        border-radius: 8px;
+        padding: 10px 12px;
+        cursor: pointer;
+      }
+      pre {
+        background: #141c32;
+        border: 1px solid #263352;
+        border-radius: 10px;
+        padding: 12px;
+        overflow: auto;
+      }
+      .muted {
+        color: #9fb0d1;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="wrap">
+      <div class="hero">
+        <div>
+          <h1>LangMet Two-Minute Demo</h1>
+          <p class="muted">A minimal frontend that calls your LangMet-powered API.</p>
+        </div>
+        <button id="refreshBtn">Refresh</button>
+      </div>
+
+      <h3>Operational</h3>
+      <div class="grid" id="operationalCards"></div>
+
+      <h3>RAG</h3>
+      <div class="grid" id="ragCards"></div>
+
+      <h3>Citation</h3>
+      <div class="grid" id="citationCards"></div>
+
+      <h3>Windowed Drift</h3>
+      <pre id="driftOutput"></pre>
+    </div>
+
+    <script>
+      function card(label, value) {
+        return `<div class="card"><div class="k">${label}</div><div class="v">${value}</div></div>`;
+      }
+
+      function pct(v) {
+        return `${(v * 100).toFixed(1)}%`;
+      }
+
+      async function load() {
+        const metrics = await fetch("/api/metrics").then((r) => r.json());
+        const drift = await fetch("/api/drift").then((r) => r.json());
+
+        const op = metrics.operational.overview;
+        const rag = metrics.rag.overview;
+        const cit = metrics.citation_coverage;
+
+        document.getElementById("operationalCards").innerHTML = [
+          card("Total Completions", op.total_completions),
+          card("Error Rate", pct(op.error_rate)),
+          card("Avg Latency", `${op.avg_latency_ms.toFixed(0)} ms`),
+          card("P95 Latency", `${op.latency_percentiles_ms.p95.toFixed(0)} ms`),
+        ].join("");
+
+        document.getElementById("ragCards").innerHTML = [
+          card("Total Queries", rag.total_queries),
+          card("Avg Retrieval", `${rag.avg_retrieval_latency_ms.toFixed(0)} ms`),
+          card("P95 Retrieval", `${rag.retrieval_latency_percentiles_ms.p95.toFixed(0)} ms`),
+          card("Avg Rerank", `${rag.avg_rerank_latency_ms.toFixed(0)} ms`),
+        ].join("");
+
+        document.getElementById("citationCards").innerHTML = [
+          card("Total Messages", cit.total_messages),
+          card("Coverage", pct(cit.citation_coverage)),
+          card("With Evidence", cit.messages_with_evidence),
+          card("Avg Evidence / Msg", cit.avg_evidence_per_message.toFixed(2)),
+        ].join("");
+
+        document.getElementById("driftOutput").textContent = JSON.stringify(drift, null, 2);
+      }
+
+      document.getElementById("refreshBtn").addEventListener("click", load);
+      load();
+    </script>
+  </body>
+</html>
