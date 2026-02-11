@@ -73,13 +73,6 @@ uvicorn app:app --app-dir examples/two-minute-demo --reload
 
 Open `http://127.0.0.1:8000/`.
 
-### Demo Preview
-
-![LangMet Demo UI](docs/assets/langmet-demo.gif)
-
-> If the GIF does not render in your GitHub client, use the static screenshot below.
-
-![LangMet Demo Screenshot](docs/assets/langmet-demo.png)
 
 ## Quickstart (Pure Functions)
 
