@@ -137,7 +137,7 @@ windowed_drift = detect_numeric_drift_windowed(
 )
 ```
 
-## Quickstart (Repository + Service)
+## Quickstart (SQL Repository + Service)
 
 ```python
 from datetime import datetime, timedelta
