@@ -9,16 +9,16 @@ def reconstruct_fromjson(obj):
 
     # Handle lists
     if isinstance(obj, list):
-        return [reconstruct(x) for x in obj]
+        return [reconstruct_fromjson(x) for x in obj]
 
     # Handle tuples
     if isinstance(obj, tuple):
-        return tuple(reconstruct(x) for x in obj)
+        return tuple(reconstruct_fromjson(x) for x in obj)
 
     # Handle dicts
     if isinstance(obj, dict):
         # First recursively reconstruct children
-        new = {k: reconstruct(v) for k, v in obj.items()}
+        new = {k: reconstruct_fromjson(v) for k, v in obj.items()}
 
         # Fix created_at if numeric
         if "created_at" in new and isinstance(new["created_at"], (int, float)):
